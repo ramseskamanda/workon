@@ -23,6 +23,7 @@ When searching for a project, if more than one is found with the same name, it s
 - [ ] Sort the projects by most recently accessed
 - [ ] Command line suggestions when going through questions
 - [ ] Start a new project
+- [ ] Allow for easy extensions (e.g. startup scripts to source a virtualenv when opening a python project)
 
 ## How it works
 
