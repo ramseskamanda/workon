@@ -2,6 +2,7 @@ package actions
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/ramseskamanda/workon/system"
 	"github.com/urfave/cli/v2"
@@ -38,19 +39,24 @@ func GetMainActionFlags() []cli.Flag {
 func MainAction(c *cli.Context) error {
 	environment = system.Environment(os.Getenv("TERM_PROGRAM"))
 	var config system.Config
+	var index system.InternalIndex
+	err := system.LoadInternalIndex(&index)
+	if err != nil {
+		return err
+	}
 	if err := system.LoadConfig(&config); err != nil {
 		err = system.AskInitializationQuestions(&config)
 		if err != nil {
 			return err
 		}
-		err = config.Create()
+		err = config.Save()
 		if err != nil {
 			return nil
 		}
 	}
 
-	channel := make(chan error)
-	go system.Scan(config.Path, channel)
+	scanner := make(chan error)
+	go system.Scan(config.Path, scanner, &index)
 
 	if editor_selection != "" {
 		editor = system.Editor(editor_selection)
@@ -59,16 +65,43 @@ func MainAction(c *cli.Context) error {
 	}
 
 	if project == system.PROJECT_DEFAULT {
-		//TODO: rewrite this part next
-		project, editor = system.AskQuestions(latest)
+		project, err = system.AskForProject(&index)
+		if err != nil {
+			return err
+		}
+
+		if project == system.NEW_PROJECT_PROMPT {
+			project, err = system.StartNewProject(&config, &index)
+			if err != nil {
+				return err
+			}
+		}
+
+		if config.Editor == "" {
+			editor_choice, err := system.AskForEditor()
+			if err != nil {
+				return err
+			}
+			editor = system.Editor(editor_choice)
+			config.Editor = editor_choice
+			config.Save()
+		}
 	}
 
-	err := <-channel
-	index := system.InternalIndex{}
-	project, err := index.FindProjectByName(project)
+	err = <-scanner
+	if err != nil {
+		return err
+	}
+	project, err = index.FindProjectByName(project)
 	if err != nil {
 		return err
 	}
 
-	return editor.Open(config.Path + project)
+	index.MostRecent = append(index.MostRecent, filepath.Base(project))
+	err = index.Overwrite()
+	if err != nil {
+		return err
+	}
+
+	return editor.Open(project)
 }

@@ -1,6 +1,9 @@
 package system
 
-import "os/exec"
+import (
+	"fmt"
+	"os/exec"
+)
 
 type Editor string
 
@@ -11,7 +14,12 @@ const (
 	EMACS  Editor = "emacs"
 )
 
+func GetSupportedEditors() []Editor {
+	return []Editor{VSCODE, NEOVIM, VIM, EMACS}
+}
+
 func (editor Editor) Open(full_path string) error {
+	fmt.Println(fmt.Sprintf("Editor: %v\nFull Path %s", editor, full_path))
 	switch editor {
 	case VSCODE:
 		cmd := exec.Command("code", full_path)
